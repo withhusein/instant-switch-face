@@ -18,7 +18,7 @@ export default async function handler(req, res) {
 
     const templateImageUrl = "https://instant-switch-face.vercel.app/template.jpg";
 
-    // 1. Kirim Request Face Swap ke Magic Hour API
+    // Request ke Magic Hour API dengan nama field yang benar (target_file_path & face_file_path)
     const response = await fetch("https://api.magichour.ai/v1/face-swap-photo", {
       method: "POST",
       headers: {
@@ -27,8 +27,8 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         assets: {
-          image_file_path: templateImageUrl,  // Foto target/template
-          face_file_path: userImageUrl       // Foto wajah user
+          target_file_path: templateImageUrl, // Foto template tujuan
+          face_file_path: userImageUrl        // Foto wajah sumber (user)
         }
       })
     });
@@ -37,11 +37,11 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       return res.status(response.status).json({ 
-        error: data.message || data.error || 'Gagal dari Magic Hour API' 
+        error: data.message || data.error || JSON.stringify(data) 
       });
     }
 
-    // 2. Polling hingga proses generasi foto di Magic Hour selesai
+    // Polling status generasi foto di Magic Hour API
     const id = data.id;
     let completedResult = null;
     let attempts = 0;
