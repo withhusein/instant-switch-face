@@ -23,9 +23,9 @@ export default async function handler(req, res) {
 
     const templateImageUrl = "https://instant-switch-face.vercel.app/template.jpg";
 
-    // Panggil model Face Swap via Replicate
+    // Gunakan format nama model langsung yang stabil
     const output = await replicate.run(
-      "lucataco/faceswap:9a42d628824e71505c338e56ab30a23964fcfb08443e597992470e65d38d119c",
+      "lucataco/faceswap",
       {
         input: {
           target_image: templateImageUrl,
