@@ -5,259 +5,114 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Join The Race! - pDOOH</title>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        body {
-            background-color: #121212;
-            color: #ffffff;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .container {
-            width: 100%;
-            max-width: 480px;
-            text-align: center;
-            background-color: #1a1a1a;
-            padding: 30px 20px;
-            border-radius: 12px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-        }
-        h1 {
-            font-size: 1.8rem;
-            margin-bottom: 8px;
-        }
-        p.subtitle {
-            color: #aaaaaa;
-            font-size: 0.95rem;
-            margin-bottom: 24px;
-        }
-        .form-group {
-            margin-bottom: 16px;
-            text-align: left;
-        }
-        input[type="text"], input[type="file"] {
-            width: 100%;
-            padding: 12px;
-            background-color: #2a2a2a;
-            border: 1px solid #3a3a3a;
-            border-radius: 6px;
-            color: #fff;
-            font-size: 1rem;
-            outline: none;
-        }
-        input[type="text"]:focus {
-            border-color: #ff0000;
-        }
-        .preview-container {
-            margin: 20px 0;
-            display: flex;
-            justify-content: center;
-        }
-        .preview-circle {
-            width: 130px;
-            height: 130px;
-            border-radius: 50%;
-            border: 3px solid #ff0000;
-            overflow: hidden;
-            background-color: #2a2a2a;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .preview-circle img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .btn-submit {
-            width: 100%;
-            padding: 14px;
-            background-color: #e50914;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.2s ease;
-        }
-        .btn-submit:hover {
-            background-color: #b80710;
-        }
-        .btn-submit:disabled {
-            background-color: #555555;
-            cursor: not-allowed;
-        }
-        #statusMessage {
-            margin-top: 16px;
-            font-size: 0.9rem;
-            color: #ffcc00;
-            min-height: 24px;
-        }
-        .error-msg {
-            color: #ff4d4d !important;
-            word-break: break-word;
-        }
-        .success-msg {
-            color: #00ff66 !important;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+        body { background: #121212; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        .card { background: #1e1e1e; padding: 25px; border-radius: 12px; width: 100%; max-width: 420px; text-align: center; }
+        input, button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 6px; border: none; }
+        input[type="text"] { background: #2a2a2a; color: #fff; }
+        button { background: #e50914; color: white; font-weight: bold; cursor: pointer; }
+        button:disabled { background: #444; }
+        .preview { width: 120px; height: 120px; border-radius: 50%; border: 3px solid #e50914; margin: 15px auto; overflow: hidden; }
+        .preview img { width: 100%; height: 100%; object-fit: cover; }
+        #status { margin-top: 15px; font-size: 0.85rem; color: #ffcc00; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>Join The Race! 🏎️</h1>
-    <p class="subtitle">Upload foto wajahmu untuk jadi Racer berikutnya.</p>
+<div class="card">
+    <h2>Join The Race! 🏎️</h2>
+    <p style="color:#aaa; font-size:0.85rem; margin-top:5px;">Upload foto untuk tayang di Videotron</p>
 
-    <form id="racerForm">
-        <div class="form-group">
-            <input type="text" id="userName" placeholder="Masukkan Nama Anda" required>
+    <form id="uploadForm">
+        <input type="text" id="userName" placeholder="Nama Kamu" required>
+        <input type="file" id="userImage" accept="image/*" required>
+
+        <div class="preview">
+            <img id="imgPreview" src="template.jpg">
         </div>
 
-        <div class="form-group">
-            <input type="file" id="userImage" accept="image/*" required>
-        </div>
-
-        <div class="preview-container">
-            <div class="preview-circle">
-                <img id="imagePreview" src="template.jpg" alt="Preview Wajah">
-            </div>
-        </div>
-
-        <button type="submit" id="btnSubmit" class="btn-submit">SUBMIT FOTO</button>
+        <button type="submit" id="btnSubmit">KIRIM FOTO</button>
     </form>
 
-    <div id="statusMessage"></div>
+    <div id="status"></div>
 </div>
 
 <script>
-    const racerForm = document.getElementById('racerForm');
+    let base64Data = null;
+    let rawSizeKB = 0;
+    let compressedSizeKB = 0;
+
     const userImageInput = document.getElementById('userImage');
-    const imagePreview = document.getElementById('imagePreview');
+    const imgPreview = document.getElementById('imgPreview');
+    const form = document.getElementById('uploadForm');
+    const statusDiv = document.getElementById('status');
     const btnSubmit = document.getElementById('btnSubmit');
-    const statusMessage = document.getElementById('statusMessage');
 
-    let base64ImageData = null;
-
-    // Handler ketika file gambar dipilih/diunggah
     userImageInput.addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (file) {
+            rawSizeKB = (file.size / 1024).toFixed(2);
+            
             const reader = new FileReader();
             reader.onload = function(event) {
-                base64ImageData = event.target.result;
-                imagePreview.src = base64ImageData;
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const MAX = 1080;
+                    let w = img.width, h = img.height;
+                    if (w > h) { if (w > MAX) { h *= MAX / w; w = MAX; } }
+                    else { if (h > MAX) { w *= MAX / h; h = MAX; } }
+
+                    canvas.width = w; canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+
+                    base64Data = canvas.toDataURL('image/jpeg', 0.8);
+                    imgPreview.src = base64Data;
+
+                    // Hitung ukuran kompresi
+                    const stringLength = base64Data.length - 'data:image/jpeg;base64,'.length;
+                    const sizeInBytes = 4 * Math.ceil(stringLength / 3) * 0.5624896;
+                    compressedSizeKB = (sizeInBytes / 1024).toFixed(2);
+                };
+                img.src = event.target.result;
             };
             reader.readAsDataURL(file);
         }
     });
 
-    // Handler submit form
-    racerForm.addEventListener('submit', async function(e) {
+    form.addEventListener('submit', async function(e) {
         e.preventDefault();
-
-        const userName = document.getElementById('userName').value.trim();
-
-        if (!userName || !base64ImageData) {
-            statusMessage.className = 'error-msg';
-            statusMessage.innerText = 'Nama dan foto wajib diisi!';
-            return;
-        }
-
-        // Lock UI & Tampilkan Status Loading
         btnSubmit.disabled = true;
-        statusMessage.className = '';
-        statusMessage.innerText = 'Mengirim data ke server...';
+        statusDiv.innerText = 'Mengirim & Merekam Telemetri...';
 
         try {
-            // 1. Submit request ke API Backend
-            const response = await fetch('/api/submit', {
+            const res = await fetch('/api/submit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    userName: userName,
-                    userImageUrl: base64ImageData
+                    userName: document.getElementById('userName').value,
+                    userImageUrl: base64Data,
+                    rawSizeKB: parseFloat(rawSizeKB),
+                    compressedSizeKB: parseFloat(compressedSizeKB)
                 })
             });
 
-            const result = await response.json();
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
 
-            if (!response.ok) {
-                throw new Error(result.error || 'Gagal mengirim request');
-            }
-
-            // 2. Jika dapat Job ID, mulai Polling Status dari Frontend
-            if (result.jobId) {
-                statusMessage.innerText = 'Memproses Wajah AI... (~10-15 detik)';
-                pollAiStatus(result.jobId);
-            } else {
-                throw new Error('Tidak menerima Job ID dari server.');
-            }
-
-        } catch (error) {
-            console.error(error);
-            statusMessage.className = 'error-msg';
-            statusMessage.innerText = 'Gagal memproses: ' + error.message;
+            statusDiv.innerHTML = `
+                <span style="color:#00ff66;">
+                    ✅ Foto Diterima!<br>
+                    Ukuran Asli: ${rawSizeKB} KB | Dikitkan: ${compressedSizeKB} KB<br>
+                    Silakan lihat ke layar Videotron dalam beberapa saat.
+                </span>
+            `;
+        } catch (err) {
+            statusDiv.innerText = 'Error: ' + err.message;
             btnSubmit.disabled = false;
         }
     });
-
-    // Fungsi Polling mengecek ketersediaan hasil AI ke /api/status
-    function pollAiStatus(jobId) {
-        let attempts = 0;
-        const maxAttempts = 30; // Maksimal 60 detik polling (30 * 2s)
-
-        const interval = setInterval(async () => {
-            attempts++;
-            
-            try {
-                const statusRes = await fetch(`/api/status?id=${jobId}`);
-                const statusData = await statusRes.json();
-
-                if (statusData.status === 'complete') {
-                    clearInterval(interval);
-                    statusMessage.className = 'success-msg';
-                    statusMessage.innerText = 'Berhasil! Wajahmu siap ditayangkan di pDOOH!';
-                    
-                    // Opsional: Tampilkan hasil akhir jika ada
-                    if (statusData.download_url) {
-                        imagePreview.src = statusData.download_url;
-                    }
-
-                    btnSubmit.disabled = false;
-
-                } else if (statusData.status === 'error') {
-                    clearInterval(interval);
-                    throw new Error('Proses Face Swap AI gagal.');
-                } else {
-                    // Masih proses (status: 'processing' / 'queued')
-                    statusMessage.innerText = `Memproses Wajah AI... (${attempts * 2}s)`;
-                }
-
-            } catch (err) {
-                clearInterval(interval);
-                statusMessage.className = 'error-msg';
-                statusMessage.innerText = 'Error: ' + err.message;
-                btnSubmit.disabled = false;
-            }
-
-            if (attempts >= maxAttempts) {
-                clearInterval(interval);
-                statusMessage.className = 'error-msg';
-                statusMessage.innerText = 'Proses memakan waktu terlalu lama. Silakan coba lagi.';
-                btnSubmit.disabled = false;
-            }
-
-        }, 2000); // Polling tiap 2 detik sekali
-    }
 </script>
-
 </body>
 </html>
