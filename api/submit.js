@@ -10,66 +10,73 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Nama dan Foto Wajah wajib diisi' });
     }
 
-    const token = process.env.REPLICATE_API_TOKEN ? process.env.REPLICATE_API_TOKEN.trim() : null;
+    const apiKey = process.env.MAGIC_HOUR_API_KEY ? process.env.MAGIC_HOUR_API_KEY.trim() : null;
     
-    if (!token) {
-      return res.status(500).json({ error: 'REPLICATE_API_TOKEN tidak terdeteksi di Environment Variables Vercel.' });
+    if (!apiKey) {
+      return res.status(500).json({ error: 'MAGIC_HOUR_API_KEY tidak terdeteksi di Environment Variables Vercel.' });
     }
 
     const templateImageUrl = "https://instant-switch-face.vercel.app/template.jpg";
 
-    // Panggil model google/nano-banana-2 via Replicate REST API
-    const response = await fetch("https://api.replicate.com/v1/models/google/nano-banana-2/predictions", {
+    // 1. Kirim Request Face Swap ke Magic Hour API
+    const response = await fetch("https://api.magichour.ai/v1/face-swap-photo", {
       method: "POST",
       headers: {
-        "Authorization": `Token ${token}`,
+        "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        input: {
-          prompt: "Swap the face in the first image with the face provided in the second image. Keep the body, lighting, background, and style of the first image intact.",
-          image_input: [templateImageUrl, userImageUrl]
+        assets: {
+          image_file_path: templateImageUrl,  // Foto target/template
+          face_file_path: userImageUrl       // Foto wajah user
         }
       })
     });
 
-    const prediction = await response.json();
+    const data = await response.json();
 
-    if (response.status !== 201 && response.status !== 200) {
+    if (!response.ok) {
       return res.status(response.status).json({ 
-        error: prediction.detail || prediction.error || JSON.stringify(prediction) 
+        error: data.message || data.error || 'Gagal dari Magic Hour API' 
       });
     }
 
-    // Polling hingga proses pembuatan gambar AI selesai
-    let completedPrediction = prediction;
-    while (
-      completedPrediction.status !== "succeeded" && 
-      completedPrediction.status !== "failed"
-    ) {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      const resPoll = await fetch(completedPrediction.urls.get, {
+    // 2. Polling hingga proses generasi foto di Magic Hour selesai
+    const id = data.id;
+    let completedResult = null;
+    let attempts = 0;
+
+    while (attempts < 30) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      
+      const pollResponse = await fetch(`https://api.magichour.ai/v1/face-swap-photo/${id}`, {
         headers: {
-          "Authorization": `Token ${token}`,
+          "Authorization": `Bearer ${apiKey}`,
         },
       });
-      completedPrediction = await resPoll.json();
+      
+      const pollData = await pollResponse.json();
+
+      if (pollData.status === "complete") {
+        completedResult = pollData;
+        break;
+      } else if (pollData.status === "error") {
+        return res.status(500).json({ error: "Proses Face Swap gagal di Magic Hour." });
+      }
+
+      attempts++;
     }
 
-    if (completedPrediction.status === "failed") {
-      return res.status(500).json({ error: "Proses AI Face Swap gagal dieksekusi oleh model." });
+    if (!completedResult || !completedResult.download_url) {
+      return res.status(508).json({ error: "Proses memakan waktu terlalu lama (timeout)." });
     }
-
-    const outputImageUrl = Array.isArray(completedPrediction.output) 
-      ? completedPrediction.output[0] 
-      : completedPrediction.output;
 
     return res.status(200).json({
       success: true,
       asset: {
         id: Date.now().toString(),
         userName: userName,
-        url: outputImageUrl,
+        url: completedResult.download_url,
         timestamp: new Date().toISOString()
       }
     });
