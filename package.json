@@ -4,6 +4,7 @@
   "type": "module",
   "dependencies": {
     "@fal-ai/client": "^1.2.0",
+    "@vercel/kv": "^3.0.0",
     "replicate": "^1.4.0"
   }
 }
