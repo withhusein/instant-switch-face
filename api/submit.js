@@ -8,40 +8,39 @@ export default async function handler(req, res) {
   try {
     let body = req.body;
     if (typeof body === 'string') {
-      try {
-        body = JSON.parse(body);
-      } catch (e) {
-        console.error('[SUBMIT] Failed to parse body string:', e);
-      }
+      try { body = JSON.parse(body); } catch (e) {}
     }
 
     const userName = body?.userName || body?.name || 'Anonymous';
-    const finalImage = body?.userImageUrl || body?.imageBase64 || body?.image || body?.photo;
+    const rawImage = body?.userImageUrl || body?.imageBase64 || body?.image;
 
-    if (!finalImage || typeof finalImage !== 'string' || finalImage.trim() === '') {
+    if (!rawImage) {
       return res.status(400).json({ error: 'Image data is required' });
     }
 
     const jobId = `job_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const t1_time = new Date().toISOString();
 
-    // Gambar target template face swap (misal: gambar badan/template)
-    const targetImageUrl = process.env.TARGET_FACE_URL || "https://instant-switch-face.vercel.app/ronaldo.jpg"; 
+    // 1. Jika gambar berupa Base64, upload temporary ke tmpfiles.org agar dapat URL Publik
+    let publicImageUrl = rawImage;
+    if (rawImage.startsWith('data:')) {
+      publicImageUrl = await uploadBase64ToPublicUrl(rawImage);
+    }
 
-    // 1. Panggil Magic Hour API (Image Face Swap Endpoint)
-    const magicHourResponse = await fetch('https://api.magichour.ai/v1/image-projects', {
+    // Target face (misal: template videotron Ronaldo)
+    const targetFaceUrl = process.env.TARGET_FACE_URL || "https://instant-switch-face.vercel.app/ronaldo.jpg";
+
+    // 2. Panggil Magic Hour Face Swap API menggunakan HTTPS URL
+    const magicHourResponse = await fetch('https://api.magichour.ai/v1/face-swap', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.MAGIC_HOUR_API_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        style: {
-          type: "Face Swap"
-        },
         assets: {
-          image_file_path: targetImageUrl, // foto template/target
-          swap_image_file_path: finalImage // foto user dari microsite
+          image_file_path: publicImageUrl,
+          target_file_path: targetFaceUrl
         },
         name: `pDOOH_${userName}_${jobId}`
       })
@@ -50,11 +49,11 @@ export default async function handler(req, res) {
     const aiData = await magicHourResponse.json();
 
     if (!magicHourResponse.ok) {
-      console.error('[MAGIC_HOUR_ERROR_RESPONSE]', aiData);
+      console.error('[MAGIC_HOUR_ERROR]', aiData);
       throw new Error(aiData.message || JSON.stringify(aiData));
     }
 
-    // 2. Buat Log Record
+    // 3. Catat Log ke Redis Cloud
     const logEntry = {
       jobId,
       userName,
@@ -76,7 +75,6 @@ export default async function handler(req, res) {
       }
     };
 
-    // 3. Simpan Log & Job Mapping ke Redis Cloud
     await redis.lpush('pdooh_logs', JSON.stringify(logEntry));
     await redis.set(`job_map:${aiData.id}`, JSON.stringify(logEntry));
 
@@ -90,5 +88,32 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error('[SUBMIT_ERROR]', error);
     return res.status(500).json({ error: error.message || 'Internal Server Error' });
+  }
+}
+
+// Helper untuk convert Base64 ke Temporary Public URL
+async function uploadBase64ToPublicUrl(base64Data) {
+  try {
+    const base64Content = base64Data.split(',')[1] || base64Data;
+    const buffer = Buffer.from(base64Content, 'base64');
+
+    const formData = new FormData();
+    const blob = new Blob([buffer], { type: 'image/jpeg' });
+    formData.append('file', blob, 'upload.jpg');
+
+    const res = await fetch('https://tmpfiles.org/api/v1/upload', {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await res.json();
+    if (data?.data?.url) {
+      // Ubah url tmpfiles ke format direct file link
+      return data.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+    }
+    throw new Error('Failed to obtain public URL from temp storage');
+  } catch (err) {
+    console.error('[UPLOAD_TEMP_ERROR]', err);
+    throw err;
   }
 }
