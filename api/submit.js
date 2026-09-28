@@ -1,4 +1,4 @@
-import { fal } from "@fal-ai/client";
+import Replicate from "replicate";
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -12,19 +12,29 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Nama dan Foto Wajah wajib diisi' });
     }
 
-    // URL gambar template statis di folder public Anda
-    const templateImageUrl = "https://instant-switch-face.vercel.app/template.jpg";
+    const replicateToken = process.env.REPLICATE_API_TOKEN;
+    if (!replicateToken) {
+      return res.status(500).json({ error: 'REPLICATE_API_TOKEN belum diatur di Vercel!' });
+    }
 
-    // Panggil Fal.ai Face Swap API
-    const result = await fal.subscribe("fal-ai/face-swap", {
-      input: {
-        base_image_url: templateImageUrl,
-        swap_image_url: userImageUrl // Bisa berupa URL HTTP atau Base64 Data URL
-      },
-      logs: true,
+    const replicate = new Replicate({
+      auth: replicateToken,
     });
 
-    const outputImageUrl = result.data.image.url;
+    const templateImageUrl = "https://instant-switch-face.vercel.app/template.jpg";
+
+    // Panggil model Face Swap via Replicate
+    const output = await replicate.run(
+      "lucataco/faceswap:9a42d628824e71505c338e56ab30a23964fcfb08443e597992470e65d38d119c",
+      {
+        input: {
+          target_image: templateImageUrl,
+          swap_image: userImageUrl
+        }
+      }
+    );
+
+    const outputImageUrl = Array.isArray(output) ? output[0] : output;
 
     return res.status(200).json({
       success: true,
@@ -37,7 +47,7 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error("Fal.ai Error:", error);
+    console.error("Replicate Error:", error);
     return res.status(500).json({ 
       error: error.message || 'Gagal memproses AI Face Swap' 
     });
