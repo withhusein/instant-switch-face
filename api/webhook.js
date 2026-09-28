@@ -1,4 +1,6 @@
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
+
+const redis = Redis.fromEnv();
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -9,8 +11,9 @@ export default async function handler(req, res) {
     const { id, status, download_url } = req.body;
     const t4_time = new Date().toISOString();
 
-    // 1. Ambil Log Entry awal berdasarkan Magic Hour ID
-    const logEntry = await kv.get(`job_map:${id}`);
+    // Ambil mapping job dari Redis
+    const rawJob = await redis.get(`job_map:${id}`);
+    const logEntry = typeof rawJob === 'string' ? JSON.parse(rawJob) : rawJob;
 
     if (!logEntry) {
       console.warn(`[WEBHOOK] Job mapping not found for Magic Hour ID: ${id}`);
@@ -22,7 +25,6 @@ export default async function handler(req, res) {
       const t4Date = new Date(t4_time);
       const aiProcessingTimeSec = ((t4Date - t1Date) / 1000).toFixed(2);
 
-      // Hitung perkiraan ukuran file hasil (Opsional)
       let processedAssetSizeKB = 0;
       try {
         const headRes = await fetch(download_url, { method: 'HEAD' });
@@ -34,13 +36,11 @@ export default async function handler(req, res) {
         console.warn('Failed to fetch image size:', e.message);
       }
 
-      // Update Log Record
       logEntry.status = 'READY_FOR_DOOH';
       logEntry.timestamps.t4_webhook_completed = t4_time;
       logEntry.durations.aiProcessingTimeSec = parseFloat(aiProcessingTimeSec);
       logEntry.assetMetrics.processedAssetSizeKB = parseFloat(processedAssetSizeKB);
 
-      // Item yang dimasukkan ke Queue Videotron
       const queueItem = {
         jobId: logEntry.jobId,
         userName: logEntry.userName,
@@ -48,8 +48,7 @@ export default async function handler(req, res) {
         createdAt: t4_time
       };
 
-      // Push item ke Queue & Update daftar Log di Redis
-      await kv.rpush('pdooh_queue', queueItem);
+      await redis.rpush('pdooh_queue', JSON.stringify(queueItem));
       await updateLogList(logEntry);
 
     } else if (status === 'error') {
@@ -65,9 +64,8 @@ export default async function handler(req, res) {
   }
 }
 
-// Helper untuk memperbarui entry di list 'pdooh_logs'
 async function updateLogList(updatedEntry) {
-  const logs = await kv.lrange('pdooh_logs', 0, -1);
+  const logs = await redis.lrange('pdooh_logs', 0, -1);
   if (!logs) return;
 
   const updatedLogs = logs.map(item => {
@@ -75,8 +73,9 @@ async function updateLogList(updatedEntry) {
     return entry.jobId === updatedEntry.jobId ? updatedEntry : entry;
   });
 
-  await kv.del('pdooh_logs');
+  await redis.del('pdooh_logs');
   if (updatedLogs.length > 0) {
-    await kv.rpush('pdooh_logs', ...updatedLogs);
+    const stringifiedLogs = updatedLogs.map(item => JSON.stringify(item));
+    await redis.rpush('pdooh_logs', ...stringifiedLogs);
   }
 }

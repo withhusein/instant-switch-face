@@ -1,8 +1,10 @@
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
+
+const redis = Redis.fromEnv();
 
 export default async function handler(req, res) {
   try {
-    const rawLogs = await kv.lrange('pdooh_logs', 0, 50);
+    const rawLogs = await redis.lrange('pdooh_logs', 0, 50);
 
     const logs = (rawLogs || []).map(item => {
       return typeof item === 'string' ? JSON.parse(item) : item;

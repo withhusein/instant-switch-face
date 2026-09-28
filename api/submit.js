@@ -1,4 +1,7 @@
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
+
+// Otomatis membaca REDIS_URL / KV_URL dari Environment Variables Vercel
+const redis = Redis.fromEnv();
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -58,9 +61,9 @@ export default async function handler(req, res) {
       }
     };
 
-    // 3. Simpan Log & Mapping Job ID ke Redis
-    await kv.lpush('pdooh_logs', logEntry);
-    await kv.set(`job_map:${aiData.id}`, logEntry);
+    // 3. Simpan Log & Mapping Job ID ke Redis Cloud
+    await redis.lpush('pdooh_logs', JSON.stringify(logEntry));
+    await redis.set(`job_map:${aiData.id}`, JSON.stringify(logEntry));
 
     return res.status(200).json({
       success: true,

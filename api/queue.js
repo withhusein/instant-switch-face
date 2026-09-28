@@ -1,11 +1,12 @@
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
+
+const redis = Redis.fromEnv();
 
 export default async function handler(req, res) {
   try {
-    // Take the oldest item in the Queue (FIFO)
-    const item = await kv.lpop('pdooh_queue');
+    const rawItem = await redis.lpop('pdooh_queue');
 
-    if (!item) {
+    if (!rawItem) {
       return res.status(200).json({
         hasContent: false,
         message: 'Queue is empty'
@@ -13,10 +14,9 @@ export default async function handler(req, res) {
     }
 
     const t5_time = new Date().toISOString();
-    const queueItem = typeof item === 'string' ? JSON.parse(item) : item;
+    const queueItem = typeof rawItem === 'string' ? JSON.parse(rawItem) : rawItem;
 
-    // Catat timestamp T5 pada log jika ada
-    const logs = await kv.lrange('pdooh_logs', 0, -1);
+    const logs = await redis.lrange('pdooh_logs', 0, -1);
     if (logs && logs.length > 0) {
       const updatedLogs = logs.map(logRaw => {
         const log = typeof logRaw === 'string' ? JSON.parse(logRaw) : logRaw;
@@ -31,8 +31,9 @@ export default async function handler(req, res) {
         return log;
       });
 
-      await kv.del('pdooh_logs');
-      await kv.rpush('pdooh_logs', ...updatedLogs);
+      await redis.del('pdooh_logs');
+      const stringifiedLogs = updatedLogs.map(item => JSON.stringify(item));
+      await redis.rpush('pdooh_logs', ...stringifiedLogs);
     }
 
     return res.status(200).json({
