@@ -1,6 +1,7 @@
 {
+  "version": 2,
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/api/submit", "destination": "/api/submit.js" }
+    { "source": "/player", "destination": "/player/index.html" }
   ]
 }

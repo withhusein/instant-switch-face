@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>pDOOH Player Engine</title>
+    <style>
+        body { margin: 0; background: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        #displayAsset { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .overlay-metrics { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.8); color: #00ff66; padding: 8px 12px; font-family: monospace; font-size: 0.8rem; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+<img id="displayAsset" src="/template.jpg" alt="Default Idle Content">
+<div class="overlay-metrics" id="metricsOverlay">STATUS: IDLE (Waiting Queue...)</div>
+
+<script>
+    const displayAsset = document.getElementById('displayAsset');
+    const metricsOverlay = document.getElementById('metricsOverlay');
+
+    async function checkQueue() {
+        try {
+            const res = await fetch('/api/queue');
+            const data = await res.json();
+
+            if (data.hasItem && data.item) {
+                console.log("Switching Content to:", data.item);
+                displayAsset.src = data.item.url;
+                metricsOverlay.innerText = `NOW PLAYING: [${data.item.userName}] | ReadyAt: ${data.item.readyAt}`;
+            }
+        } catch (e) {
+            console.error("Player queue fetch error:", e);
+        }
+    }
+
+    // Cek antrean baru tiap 10 detik
+    setInterval(checkQueue, 10000);
+</script>
+</body>
+</html>
