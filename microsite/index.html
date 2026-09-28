@@ -9,6 +9,7 @@
     .form-group { margin-bottom: 15px; }
     input { padding: 10px; width: 80%; max-width: 300px; margin-top: 5px; }
     button { padding: 12px 24px; background: #e50914; color: white; border: none; font-weight: bold; cursor: pointer; }
+    #resultImg { width: 100%; max-width: 350px; margin-top: 20px; border-radius: 8px; display: none; }
   </style>
 </head>
 <body>
@@ -20,21 +21,58 @@
       <input type="text" id="userName" placeholder="Nama Kamu" required />
     </div>
     <div class="form-group">
-      <input type="file" id="userPhoto" accept="image/*" required />
+      <!-- Input URL Foto sementara untuk kemudahan testing tanpa storage tambahan -->
+      <input type="url" id="userPhotoUrl" placeholder="Paste URL Foto Wajah (PNG/JPG)" required />
     </div>
-    <button type="submit">SUBMIT FOTO</button>
+    <button type="submit" id="btnSubmit">SUBMIT FOTO</button>
   </form>
 
   <p id="status"></p>
+  <img id="resultImg" src="" alt="Hasil AI" />
 
   <script>
+    const VERCEL_BACKEND_URL = "instant-switch-face.vercel.app/api/submit"; // GANTI DENGAN URL VERCEL ANDA
+
     const form = document.getElementById('uploadForm');
+    const statusText = document.getElementById('status');
+    const resultImg = document.getElementById('resultImg');
+    const btnSubmit = document.getElementById('btnSubmit');
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      document.getElementById('status').innerText = 'Memproses ke AI... Mohon tunggu!';
       
-      // Nanti endpoint ini akan dihubungkan ke Vercel API
-      alert('File siap! Langkah berikutnya kita hubungkan ke Fal.ai API');
+      const userName = document.getElementById('userName').value;
+      const userPhotoUrl = document.getElementById('userPhotoUrl').value;
+
+      statusText.innerText = 'Mengirim data ke AI... Mohon tunggu (~5 detik)';
+      btnSubmit.disabled = true;
+      resultImg.style.display = 'none';
+
+      try {
+        const response = await fetch(VERCEL_BACKEND_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userName: userName,
+            userImageUrl: userPhotoUrl
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          statusText.innerText = `Berhasil! Wajah ${data.asset.userName} sudah diswap.`;
+          resultImg.src = data.asset.url;
+          resultImg.style.display = 'inline-block';
+        } else {
+          statusText.innerText = 'Gagal memproses: ' + (data.error || 'Terjadi kesalahan');
+        }
+      } catch (err) {
+        console.error(err);
+        statusText.innerText = 'Error koneksi ke backend Vercel.';
+      } finally {
+        btnSubmit.disabled = false;
+      }
     });
   </script>
 </body>
