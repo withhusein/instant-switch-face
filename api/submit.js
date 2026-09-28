@@ -16,9 +16,48 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'MAGIC_HOUR_API_KEY tidak terdeteksi di Environment Variables Vercel.' });
     }
 
+    // ----------------------------------------------------------------------
+    // 1. HANDLER BASE64 TO PUBLIC URL (Perbaikan Utama)
+    // ----------------------------------------------------------------------
+    let finalUserImageUrl = userImageUrl;
+
+    // Jika input berupa Base64 Data URL, upload ke temporary image host
+    if (userImageUrl.startsWith('data:image/')) {
+      try {
+        // Extract base64 murni tanpa header data:image/...;base64,
+        const base64Data = userImageUrl.split(',')[1];
+        
+        // Upload Base64 ke FreeImageHost API untuk mendapatkan URL Publik
+        const formData = new URLSearchParams();
+        formData.append('key', '6d207e02198a847aa98d0a2a901485a5'); // Public API Key
+        formData.append('action', 'upload');
+        formData.append('source', base64Data);
+        formData.append('format', 'json');
+
+        const uploadRes = await fetch('https://freeimage.host/api/1/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: formData.toString()
+        });
+
+        const uploadData = await uploadRes.json();
+
+        if (uploadData && uploadData.image && uploadData.image.url) {
+          finalUserImageUrl = uploadData.image.url; // URL publik yang valid untuk Magic Hour
+        } else {
+          return res.status(400).json({ error: 'Gagal mengonversi gambar Base64 ke URL Publik.' });
+        }
+      } catch (uploadErr) {
+        console.error('Upload Error:', uploadErr);
+        return res.status(500).json({ error: 'Gagal memproses upload gambar sementara.' });
+      }
+    }
+
+    // ----------------------------------------------------------------------
+    // 2. KIRIM KE MAGIC HOUR API
+    // ----------------------------------------------------------------------
     const templateImageUrl = "https://instant-switch-face.vercel.app/template.jpg";
 
-    // Request ke Magic Hour API sesuai skema resmi
     const response = await fetch("https://api.magichour.ai/v1/face-swap-photo", {
       method: "POST",
       headers: {
@@ -29,8 +68,8 @@ export default async function handler(req, res) {
         name: `Face Swap - ${userName}`,
         assets: {
           face_swap_mode: "all-faces",
-          source_file_path: userImageUrl,    // Foto wajah user
-          target_file_path: templateImageUrl // Foto template
+          source_file_path: finalUserImageUrl,    // Menggunakan URL Publik yang sudah valid
+          target_file_path: templateImageUrl
         }
       })
     });
@@ -43,7 +82,9 @@ export default async function handler(req, res) {
       });
     }
 
-    // Polling status hasil pembuatan foto
+    // ----------------------------------------------------------------------
+    // 3. POLLING STATUS HASIL SWAP
+    // ----------------------------------------------------------------------
     const id = data.id;
     let completedResult = null;
     let attempts = 0;
