@@ -6,19 +6,21 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { 
-      userName, 
-      imageBase64, 
-      image, 
-      photo, 
-      rawUploadSizeKB, 
-      frontendCompressedSizeKB 
-    } = req.body;
+    let body = req.body;
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch (e) {
+        console.error('[SUBMIT] Failed to parse body string:', e);
+      }
+    }
 
-    // Menampung gambar dari field mana pun yang dikirim oleh frontend
-    const finalImage = imageBase64 || image || photo;
+    const userName = body?.userName || body?.name || 'Anonymous';
+    
+    // Membaca userImageUrl yang dikirim dari frontend
+    const finalImage = body?.userImageUrl || body?.imageBase64 || body?.image || body?.photo;
 
-    if (!finalImage) {
+    if (!finalImage || typeof finalImage !== 'string' || finalImage.trim() === '') {
       return res.status(400).json({ error: 'Image data is required' });
     }
 
@@ -36,7 +38,7 @@ export default async function handler(req, res) {
         assets: {
           image_file_path: finalImage
         },
-        name: `pDOOH_${userName || 'User'}_${jobId}`
+        name: `pDOOH_${userName}_${jobId}`
       })
     });
 
@@ -49,12 +51,12 @@ export default async function handler(req, res) {
     // 2. Buat Log Record
     const logEntry = {
       jobId,
-      userName: userName || 'Anonymous',
+      userName,
       magicHourId: aiData.id,
       status: 'PROCESSING_IN_AI',
       assetMetrics: {
-        rawUploadSizeKB: rawUploadSizeKB || 0,
-        frontendCompressedSizeKB: frontendCompressedSizeKB || 0,
+        rawUploadSizeKB: body?.rawSizeKB || 0,
+        frontendCompressedSizeKB: body?.compressedSizeKB || 0,
         processedAssetSizeKB: null
       },
       durations: {
