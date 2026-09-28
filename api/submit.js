@@ -25,20 +25,23 @@ export default async function handler(req, res) {
     const jobId = `job_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const t1_time = new Date().toISOString();
 
-    // Pastikan URL target image (Ronaldo) sudah benar
+    // Gambar target template face swap (misal: gambar badan/template)
     const targetImageUrl = process.env.TARGET_FACE_URL || "https://instant-switch-face.vercel.app/ronaldo.jpg"; 
 
-    // 1. Panggil Magic Hour API (Image-to-Image Face Swap)
-    const magicHourResponse = await fetch('https://api.magichour.ai/v1/face-swap', {
+    // 1. Panggil Magic Hour API (Image Face Swap Endpoint)
+    const magicHourResponse = await fetch('https://api.magichour.ai/v1/image-projects', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.MAGIC_HOUR_API_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
+        style: {
+          type: "Face Swap"
+        },
         assets: {
-          image_file_path: finalImage,        // Foto user dari Microsite
-          target_file_path: targetImageUrl     // Foto target (misal: Ronaldo)
+          image_file_path: targetImageUrl, // foto template/target
+          swap_image_file_path: finalImage // foto user dari microsite
         },
         name: `pDOOH_${userName}_${jobId}`
       })
