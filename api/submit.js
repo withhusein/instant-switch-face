@@ -18,18 +18,17 @@ export default async function handler(req, res) {
 
     const templateImageUrl = "https://instant-switch-face.vercel.app/template.jpg";
 
-    // Request ke Replicate REST API menggunakan versi resmi lucataco/faceswap
-    const response = await fetch("https://api.replicate.com/v1/predictions", {
+    // Panggil model google/nano-banana-2 via Replicate REST API
+    const response = await fetch("https://api.replicate.com/v1/models/google/nano-banana-2/predictions", {
       method: "POST",
       headers: {
         "Authorization": `Token ${token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        version: "9a42d628824e71505c338e56ab30a23964fcfb08443e597992470e65d38d119c",
         input: {
-          target_image: templateImageUrl,
-          swap_image: userImageUrl
+          prompt: "Swap the face in the first image with the face provided in the second image. Keep the body, lighting, background, and style of the first image intact.",
+          image_input: [templateImageUrl, userImageUrl]
         }
       })
     });
@@ -38,11 +37,11 @@ export default async function handler(req, res) {
 
     if (response.status !== 201 && response.status !== 200) {
       return res.status(response.status).json({ 
-        error: prediction.detail || prediction.error || 'Gagal dari Replicate API' 
+        error: prediction.detail || prediction.error || JSON.stringify(prediction) 
       });
     }
 
-    // Polling hingga proses inferensi AI selesai
+    // Polling hingga proses pembuatan gambar AI selesai
     let completedPrediction = prediction;
     while (
       completedPrediction.status !== "succeeded" && 
