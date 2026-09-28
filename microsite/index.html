@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Instant Switch Face - Racer</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #111; color: #fff; text-align: center; }
+    .form-group { margin-bottom: 15px; }
+    input { padding: 10px; width: 80%; max-width: 300px; margin-top: 5px; }
+    button { padding: 12px 24px; background: #e50914; color: white; border: none; font-weight: bold; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h2>Join The Race! 🏎️</h2>
+  <p>Upload foto wajahmu untuk jadi Racer berikutnya.</p>
+
+  <form id="uploadForm">
+    <div class="form-group">
+      <input type="text" id="userName" placeholder="Nama Kamu" required />
+    </div>
+    <div class="form-group">
+      <input type="file" id="userPhoto" accept="image/*" required />
+    </div>
+    <button type="submit">SUBMIT FOTO</button>
+  </form>
+
+  <p id="status"></p>
+
+  <script>
+    const form = document.getElementById('uploadForm');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      document.getElementById('status').innerText = 'Memproses ke AI... Mohon tunggu!';
+      
+      // Nanti endpoint ini akan dihubungkan ke Vercel API
+      alert('File siap! Langkah berikutnya kita hubungkan ke Fal.ai API');
+    });
+  </script>
+</body>
+</html>
