@@ -21,17 +21,17 @@ export default async function handler(req, res) {
     const jobId = `job_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const t1_time = new Date().toISOString();
 
-    // 1. Jika gambar berupa Base64, upload temporary ke tmpfiles.org agar dapat URL Publik
+    // 1. Convert Base64 ke Public URL (jika gambar masih berupa Base64)
     let publicImageUrl = rawImage;
     if (rawImage.startsWith('data:')) {
       publicImageUrl = await uploadBase64ToPublicUrl(rawImage);
     }
 
-    // Target face (misal: template videotron Ronaldo)
+    // Target face template (misal: gambar Ronaldo)
     const targetFaceUrl = process.env.TARGET_FACE_URL || "https://instant-switch-face.vercel.app/ronaldo.jpg";
 
-    // 2. Panggil Magic Hour Face Swap API menggunakan HTTPS URL
-    const magicHourResponse = await fetch('https://api.magichour.ai/v1/face-swap', {
+    // 2. Panggil Magic Hour Photo Face Swap API (ENDPOINT RESMI)
+    const magicHourResponse = await fetch('https://api.magichour.ai/v1/face-swap-photo', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.MAGIC_HOUR_API_KEY}`,
@@ -39,8 +39,8 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         assets: {
-          image_file_path: publicImageUrl,
-          target_file_path: targetFaceUrl
+          source_file_path: publicImageUrl, // foto user
+          target_file_path: targetFaceUrl    // foto target (Ronaldo)
         },
         name: `pDOOH_${userName}_${jobId}`
       })
@@ -53,7 +53,7 @@ export default async function handler(req, res) {
       throw new Error(aiData.message || JSON.stringify(aiData));
     }
 
-    // 3. Catat Log ke Redis Cloud
+    // 3. Simpan Log ke Redis
     const logEntry = {
       jobId,
       userName,
@@ -91,7 +91,7 @@ export default async function handler(req, res) {
   }
 }
 
-// Helper untuk convert Base64 ke Temporary Public URL
+// Helper upload Base64 ke Public URL
 async function uploadBase64ToPublicUrl(base64Data) {
   try {
     const base64Content = base64Data.split(',')[1] || base64Data;
@@ -108,10 +108,9 @@ async function uploadBase64ToPublicUrl(base64Data) {
 
     const data = await res.json();
     if (data?.data?.url) {
-      // Ubah url tmpfiles ke format direct file link
       return data.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
     }
-    throw new Error('Failed to obtain public URL from temp storage');
+    throw new Error('Failed to obtain public URL');
   } catch (err) {
     console.error('[UPLOAD_TEMP_ERROR]', err);
     throw err;
