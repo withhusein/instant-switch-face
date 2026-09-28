@@ -1,7 +1,1 @@
-{
-  "rewrites": [
-    { "source": "/", "destination": "/microsite/index.html" },
-    { "source": "/microsite", "destination": "/microsite/index.html" },
-    { "source": "/player", "destination": "/player/index.html" }
-  ]
-}
+{}
