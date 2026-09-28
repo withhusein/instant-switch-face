@@ -21,7 +21,6 @@
       <input type="text" id="userName" placeholder="Nama Kamu" required />
     </div>
     <div class="form-group">
-      <!-- Input URL Foto sementara untuk kemudahan testing tanpa storage tambahan -->
       <input type="url" id="userPhotoUrl" placeholder="Paste URL Foto Wajah (PNG/JPG)" required />
     </div>
     <button type="submit" id="btnSubmit">SUBMIT FOTO</button>
@@ -31,7 +30,8 @@
   <img id="resultImg" src="" alt="Hasil AI" />
 
   <script>
-    const VERCEL_BACKEND_URL = "/api/submit"; // GANTI DENGAN URL VERCEL ANDA
+    // Memanggil API backend serverless Vercel lokal/relatif
+    const VERCEL_BACKEND_URL = "/api/submit";
 
     const form = document.getElementById('uploadForm');
     const statusText = document.getElementById('status');
