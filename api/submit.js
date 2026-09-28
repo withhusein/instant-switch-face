@@ -1,46 +1,45 @@
 import { fal } from "@fal-ai/client";
 
-// Inisialisasi Fal Client memakai Environment Variable FAL_KEY dari Vercel
-fal.config({
-  credentials: process.env.FAL_KEY,
-});
-
 export default async function handler(req, res) {
-  // Hanya menerima HTTP POST
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { userImageUrl, userName } = req.body;
+    const { userName, userImageUrl } = req.body;
 
-    // Foto template baju balap (bisa diganti URL foto template Anda nanti)
-    const templateImageUrl = "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=800&auto=format&fit=crop";
+    if (!userName || !userImageUrl) {
+      return res.status(400).json({ error: 'Nama dan Foto Wajah wajib diisi' });
+    }
 
-    // Panggil Model Face Swap dari Fal.ai
+    // URL gambar template statis di folder public Anda
+    const templateImageUrl = "https://instant-switch-face.vercel.app/template.jpg";
+
+    // Panggil Fal.ai Face Swap API
     const result = await fal.subscribe("fal-ai/face-swap", {
       input: {
-        base_image_url: templateImageUrl, // Gambar Baju Balap/Target
-        swap_image_url: userImageUrl       // Gambar Wajah Pengunjung
+        base_image_url: templateImageUrl,
+        swap_image_url: userImageUrl // Bisa berupa URL HTTP atau Base64 Data URL
       },
       logs: true,
     });
 
-    const generatedImageUrl = result.data.image.url;
+    const outputImageUrl = result.data.image.url;
 
-    // Output data asset yang siap dikirim ke Videotron
-    const newAsset = {
-      id: `racer_${Date.now()}_${(userName || 'anon').replace(/\s+/g, '_')}`,
-      url: generatedImageUrl,
-      userName: userName,
-      played: false,
-      timestamp: new Date().toISOString()
-    };
-
-    return res.status(200).json({ success: true, asset: newAsset });
+    return res.status(200).json({
+      success: true,
+      asset: {
+        id: Date.now().toString(),
+        userName: userName,
+        url: outputImageUrl,
+        timestamp: new Date().toISOString()
+      }
+    });
 
   } catch (error) {
-    console.error("Error AI Fal.ai:", error);
-    return res.status(500).json({ error: "Gagal memproses AI Face Swap", details: error.message });
+    console.error("Fal.ai Error:", error);
+    return res.status(500).json({ 
+      error: error.message || 'Gagal memproses AI Face Swap' 
+    });
   }
 }

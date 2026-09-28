@@ -7,9 +7,11 @@
   <style>
     body { font-family: sans-serif; padding: 20px; background: #111; color: #fff; text-align: center; }
     .form-group { margin-bottom: 15px; }
-    input { padding: 10px; width: 80%; max-width: 300px; margin-top: 5px; }
-    button { padding: 12px 24px; background: #e50914; color: white; border: none; font-weight: bold; cursor: pointer; }
+    input[type="text"], input[type="file"] { padding: 10px; width: 80%; max-width: 300px; margin-top: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; }
+    button { padding: 12px 24px; background: #e50914; color: white; border: none; font-weight: bold; cursor: pointer; border-radius: 4px; margin-top: 10px; }
+    button:disabled { background: #555; }
     #resultImg { width: 100%; max-width: 350px; margin-top: 20px; border-radius: 8px; display: none; }
+    #previewImg { width: 120px; height: 120px; object-fit: cover; border-radius: 50%; margin: 10px auto; display: none; border: 2px solid #e50914; }
   </style>
 </head>
 <body>
@@ -20,41 +22,79 @@
     <div class="form-group">
       <input type="text" id="userName" placeholder="Nama Kamu" required />
     </div>
+    
     <div class="form-group">
-      <input type="url" id="userPhotoUrl" placeholder="Paste URL Foto Wajah (PNG/JPG)" required />
+      <!-- Input File: Support upload dari Galeri & Jepret Kamera -->
+      <input type="file" id="userPhotoFile" accept="image/*" capture="user" required />
     </div>
-    <button type="submit" id="btnSubmit">SUBMIT FOTO</button>
+
+    <!-- Preview foto yang baru saja diunggah -->
+    <img id="previewImg" src="" alt="Preview Foto" />
+
+    <div>
+      <button type="submit" id="btnSubmit">SUBMIT FOTO</button>
+    </div>
   </form>
 
   <p id="status"></p>
   <img id="resultImg" src="" alt="Hasil AI" />
 
   <script>
-    // Memanggil API backend serverless Vercel lokal/relatif
     const VERCEL_BACKEND_URL = "/api/submit";
 
     const form = document.getElementById('uploadForm');
+    const fileInput = document.getElementById('userPhotoFile');
+    const previewImg = document.getElementById('previewImg');
     const statusText = document.getElementById('status');
     const resultImg = document.getElementById('resultImg');
     const btnSubmit = document.getElementById('btnSubmit');
+
+    // Tampilkan preview saat foto dipilih/dijepret
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          previewImg.src = event.target.result;
+          previewImg.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // Helper: Konversi file gambar ke string Base64 Data URL
+    const fileToBase64 = (file) => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (error) => reject(error);
+    });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       
       const userName = document.getElementById('userName').value;
-      const userPhotoUrl = document.getElementById('userPhotoUrl').value;
+      const file = fileInput.files[0];
 
-      statusText.innerText = 'Mengirim data ke AI... Mohon tunggu (~5 detik)';
+      if (!file) {
+        alert("Pilih atau jepret foto terlebih dahulu!");
+        return;
+      }
+
+      statusText.innerText = 'Mengunggah & Memproses AI... (~5 detik)';
       btnSubmit.disabled = true;
       resultImg.style.display = 'none';
 
       try {
+        // Ubah foto menjadi Data URL (Base64)
+        const imageBase64 = await fileToBase64(file);
+
         const response = await fetch(VERCEL_BACKEND_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             userName: userName,
-            userImageUrl: userPhotoUrl
+            userImageUrl: imageBase64 // Kirim data foto langsung ke backend
           })
         });
 
