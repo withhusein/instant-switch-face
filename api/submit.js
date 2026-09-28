@@ -6,9 +6,19 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { userName, imageBase64, rawUploadSizeKB, frontendCompressedSizeKB } = req.body;
+    const { 
+      userName, 
+      imageBase64, 
+      image, 
+      photo, 
+      rawUploadSizeKB, 
+      frontendCompressedSizeKB 
+    } = req.body;
 
-    if (!imageBase64) {
+    // Menampung gambar dari field mana pun yang dikirim oleh frontend
+    const finalImage = imageBase64 || image || photo;
+
+    if (!finalImage) {
       return res.status(400).json({ error: 'Image data is required' });
     }
 
@@ -24,9 +34,9 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         assets: {
-          image_file_path: imageBase64
+          image_file_path: finalImage
         },
-        name: `pDOOH_${userName}_${jobId}`
+        name: `pDOOH_${userName || 'User'}_${jobId}`
       })
     });
 
@@ -58,7 +68,7 @@ export default async function handler(req, res) {
       }
     };
 
-    // 3. Simpan Log & Job Mapping ke Redis
+    // 3. Simpan Log & Job Mapping ke Redis Cloud
     await redis.lpush('pdooh_logs', JSON.stringify(logEntry));
     await redis.set(`job_map:${aiData.id}`, JSON.stringify(logEntry));
 
@@ -66,7 +76,7 @@ export default async function handler(req, res) {
       success: true,
       jobId,
       magicHourId: aiData.id,
-      message: 'Foto diterima dan sedang diproses AI.'
+      message: 'Foto berhasil dikirim dan sedang diproses AI!'
     });
 
   } catch (error) {
