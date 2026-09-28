@@ -12,20 +12,21 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Nama dan Foto Wajah wajib diisi' });
     }
 
-    const replicateToken = process.env.REPLICATE_API_TOKEN;
-    if (!replicateToken) {
-      return res.status(500).json({ error: 'REPLICATE_API_TOKEN belum diatur di Vercel!' });
+    const token = process.env.REPLICATE_API_TOKEN;
+    if (!token) {
+      return res.status(500).json({ error: 'REPLICATE_API_TOKEN tidak ditemukan di Environment Variables Vercel!' });
     }
 
+    // Inisialisasi dengan memberikan auth token secara langsung
     const replicate = new Replicate({
-      auth: replicateToken,
+      auth: token.trim(),
     });
 
     const templateImageUrl = "https://instant-switch-face.vercel.app/template.jpg";
 
-    // Gunakan format nama model langsung yang stabil
+    // Gunakan model face-swap yang aktif & terverifikasi di Replicate
     const output = await replicate.run(
-      "lucataco/faceswap",
+      "codeplugtech/face-swap:4f9011562784d81203eb615e4f20f04eefeb21a84f3ebf2dcfedfd17b075c3db",
       {
         input: {
           target_image: templateImageUrl,
