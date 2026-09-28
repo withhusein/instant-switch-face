@@ -18,7 +18,7 @@ export default async function handler(req, res) {
 
     const templateImageUrl = "https://instant-switch-face.vercel.app/template.jpg";
 
-    // 1. Kirim Request Prediksi ke Replicate API
+    // Request ke Replicate REST API menggunakan versi resmi lucataco/faceswap
     const response = await fetch("https://api.replicate.com/v1/predictions", {
       method: "POST",
       headers: {
@@ -26,7 +26,7 @@ export default async function handler(req, res) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        version: "4f9011562784d81203eb615e4f20f04eefeb21a84f3ebf2dcfedfd17b075c3db",
+        version: "9a42d628824e71505c338e56ab30a23964fcfb08443e597992470e65d38d119c",
         input: {
           target_image: templateImageUrl,
           swap_image: userImageUrl
@@ -42,7 +42,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // 2. Poll / Tunggu Hasil Eksekusi Selesai
+    // Polling hingga proses inferensi AI selesai
     let completedPrediction = prediction;
     while (
       completedPrediction.status !== "succeeded" && 
