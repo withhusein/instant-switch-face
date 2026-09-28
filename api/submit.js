@@ -16,8 +16,6 @@ export default async function handler(req, res) {
     }
 
     const userName = body?.userName || body?.name || 'Anonymous';
-    
-    // Membaca userImageUrl yang dikirim dari frontend
     const finalImage = body?.userImageUrl || body?.imageBase64 || body?.image || body?.photo;
 
     if (!finalImage || typeof finalImage !== 'string' || finalImage.trim() === '') {
@@ -27,7 +25,10 @@ export default async function handler(req, res) {
     const jobId = `job_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const t1_time = new Date().toISOString();
 
-    // 1. Panggil Magic Hour API (Face Swap)
+    // Pastikan URL target image (Ronaldo) sudah benar
+    const targetImageUrl = process.env.TARGET_FACE_URL || "https://instant-switch-face.vercel.app/ronaldo.jpg"; 
+
+    // 1. Panggil Magic Hour API (Image-to-Image Face Swap)
     const magicHourResponse = await fetch('https://api.magichour.ai/v1/face-swap', {
       method: 'POST',
       headers: {
@@ -36,7 +37,8 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         assets: {
-          image_file_path: finalImage
+          image_file_path: finalImage,        // Foto user dari Microsite
+          target_file_path: targetImageUrl     // Foto target (misal: Ronaldo)
         },
         name: `pDOOH_${userName}_${jobId}`
       })
@@ -45,7 +47,8 @@ export default async function handler(req, res) {
     const aiData = await magicHourResponse.json();
 
     if (!magicHourResponse.ok) {
-      throw new Error(aiData.message || 'Magic Hour API error');
+      console.error('[MAGIC_HOUR_ERROR_RESPONSE]', aiData);
+      throw new Error(aiData.message || JSON.stringify(aiData));
     }
 
     // 2. Buat Log Record
